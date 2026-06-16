@@ -9,7 +9,6 @@ on:
 env:
   ACR: arkivverketpublic.azurecr.io/schemas
   IMAGE: schemas
-  TARGET_ENV: karbonprod
 
 jobs:
   pre_job:
@@ -27,7 +26,7 @@ jobs:
     needs: pre_job
     permissions:
       id-token: write
-      contents: read
+      contents: write
     env:
       IMAGE_VERSION: ${{ format('{0}-{1}', needs.pre_job.outputs.date, github.sha) }}
     steps:
@@ -56,34 +55,12 @@ jobs:
           --push .
         working-directory: .
 
-  update-deployment-version:
-    needs:
-      - pre_job
-      - build-and-publish-image
-
-    runs-on: ubuntu-latest
-    env:
-      REPO: ${{ github.repository }}
-      IMAGE_VERSION: ${{ format('{0}-{1}', needs.pre_job.outputs.date, github.sha) }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: ${{ format('{0}-k8s-config', github.repository) }}
-          token: ${{ secrets.GITOPS_PAT }}
-
-      - run: |
-          kustomize edit set image ${IMAGE}Image=${ACR}/${IMAGE}:${{ format('{0}', env.IMAGE_VERSION) }}
-        working-directory: overlays/${{ env.TARGET_ENV }}
-
-      - run: |
-          git config --local user.email "${{ secrets.GITOPS_EMAIL }}"
-          git config --local user.name "${{ secrets.GITOPS_USER }}"
-          git add .
-          cat > /tmp/commit-message <<- EOM
-          Set ${IMAGE} image tag to ${TAG} in ${TARGET_ENV}
-          Repository: ${REPO}
-          Pull Request: [#${PR_NUMBER}][${PR_NUMBER}]
-          [${PR_NUMBER}]: ${PR_URL}
-          EOM
-          git commit -F /tmp/commit-message
-          git push
+      - name: Record deployed image tag as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${IMAGE_VERSION}" >/dev/null 2>&1 || \
+          gh release create "${IMAGE_VERSION}" \
+            --target "${GITHUB_SHA}" \
+            --title "${IMAGE_VERSION}" \
+            --notes "Pushed ${ACR}/${IMAGE}:${IMAGE_VERSION}"
