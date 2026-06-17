@@ -26,7 +26,7 @@ jobs:
     needs: pre_job
     permissions:
       id-token: write
-      contents: write
+      contents: read
     env:
       IMAGE_VERSION: ${{ format('{0}-{1}', needs.pre_job.outputs.date, github.sha) }}
     steps:
@@ -54,12 +54,3 @@ jobs:
           --tag ${{ env.ACR }}/${{ env.IMAGE }}:latest
           --push .
         working-directory: .
-
-      - name: Tag the build with the pushed image version
-        run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/${IMAGE_VERSION}" >/dev/null 2>&1; then
-            echo "Tag ${IMAGE_VERSION} already exists; nothing to do."
-          else
-            git tag "${IMAGE_VERSION}"
-            git push origin "${IMAGE_VERSION}"
-          fi
