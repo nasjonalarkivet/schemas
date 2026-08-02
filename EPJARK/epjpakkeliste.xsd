@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-    targetNamespace="http://schema.arkivverket.no/apjark/epjpakkeliste"
+    targetNamespace="http://schema.arkivverket.no/epjark/epjpakkeliste"
     xmlns="http://schema.arkivverket.no/epjark/epjpakkeliste" elementFormDefault="qualified"
-    xmlns:epj="http://schema.arkivverket.no/apjark/epjpakkeliste">
+    xmlns:epj="http://schema.arkivverket.no/epjark/epjpakkeliste">
 
     <!--	XML-skjema for EPJark epjpakkeliste.xml	(Versjon 0.4 2014-04-08 - eriaab/jengle Arkivverket Riksarkivet/Norsk helsearkiv)	-->
 
