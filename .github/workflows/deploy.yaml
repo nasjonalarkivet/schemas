@@ -7,9 +7,8 @@ on:
     types: [closed]
 
 env:
-  ACR: arkivverket.azurecr.io/schemas
+  ACR: arkivverketpublic.azurecr.io/schemas
   IMAGE: schemas
-  TARGET_ENV: karbonprod
 
 jobs:
   pre_job:
@@ -25,20 +24,27 @@ jobs:
   build-and-publish-image:
     runs-on: ubuntu-latest
     needs: pre_job
+    permissions:
+      id-token: write
+      contents: read
     env:
       IMAGE_VERSION: ${{ format('{0}-{1}', needs.pre_job.outputs.date, github.sha) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Login to Docker container registry
         uses: docker/login-action@v4.1.0
+
         with:
-          registry: arkivverket.azurecr.io
-          username: ${{ secrets.ARKIVVERKET_AZURE_REGISTRY_USERNAME }}
-          password: ${{ secrets.ARKIVVERKET_AZURE_REGISTRY_PASSWORD }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name arkivverketpublic
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.12.0
+        uses: docker/setup-buildx-action@v4.4.1
         with:
           install: true
 
@@ -49,35 +55,3 @@ jobs:
           --tag ${{ env.ACR }}/${{ env.IMAGE }}:latest
           --push .
         working-directory: .
-
-  update-deployment-version:
-    needs:
-      - pre_job
-      - build-and-publish-image
-
-    runs-on: ubuntu-latest
-    env:
-      REPO: ${{ github.repository }}
-      IMAGE_VERSION: ${{ format('{0}-{1}', needs.pre_job.outputs.date, github.sha) }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: ${{ format('{0}-k8s-config', github.repository) }}
-          token: ${{ secrets.GITOPS_PAT }}
-
-      - run: |
-          kustomize edit set image ${IMAGE}Image=${ACR}/${IMAGE}:${{ format('{0}', env.IMAGE_VERSION) }}
-        working-directory: overlays/${{ env.TARGET_ENV }}
-
-      - run: |
-          git config --local user.email "${{ secrets.GITOPS_EMAIL }}"
-          git config --local user.name "${{ secrets.GITOPS_USER }}"
-          git add .
-          cat > /tmp/commit-message <<- EOM
-          Set ${IMAGE} image tag to ${TAG} in ${TARGET_ENV}
-          Repository: ${REPO}
-          Pull Request: [#${PR_NUMBER}][${PR_NUMBER}]
-          [${PR_NUMBER}]: ${PR_URL}
-          EOM
-          git commit -F /tmp/commit-message
-          git push
