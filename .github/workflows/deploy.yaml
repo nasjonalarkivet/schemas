@@ -30,7 +30,7 @@ jobs:
     env:
       IMAGE_VERSION: ${{ format('{0}-{1}', needs.pre_job.outputs.date, github.sha) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Authenticate to Azure (OIDC)
         uses: azure/login@v3
